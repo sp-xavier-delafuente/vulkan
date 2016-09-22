@@ -41,6 +41,7 @@ private:
 	const bool enableValidationLayers;
 	VkFormat swapChainImageFormat;
 	VkExtent2D swapChainExtent;
+	std::vector<VDeleter<VkImageView>> swapChainImageViews;
 
 	void initWindow();
 
@@ -57,6 +58,10 @@ private:
 	void createLogicalDevice();
 
 	void createSwapChain();
+
+	void createImageViews();
+
+	void createGraphicsPipeline();
 
 	std::vector<const char*> getRequiredExtensions();
 
