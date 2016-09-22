@@ -1,17 +1,19 @@
+#include <functional>
+
 template <typename T>
 class VDeleter {
 public:
 	VDeleter() : VDeleter([](T, VkAllocationCallbacks*) {}) {}
 
-	VDeleter(std::function<void(T, VkAllocationCallbacks*)> deletef) {
+	VDeleter(std::function<void(T, const VkAllocationCallbacks*)> deletef) {
 		this->deleter = [=](T obj) { deletef(obj, nullptr); };
 	}
 
-	VDeleter(const VDeleter<VkInstance>& instance, std::function<void(VkInstance, T, VkAllocationCallbacks*)> deletef) {
+	VDeleter(const VDeleter<VkInstance>& instance, std::function<void(VkInstance, T, const VkAllocationCallbacks*)> deletef) {
 		this->deleter = [&instance, deletef](T obj) { deletef(instance, obj, nullptr); };
 	}
 
-	VDeleter(const VDeleter<VkDevice>& device, std::function<void(VkDevice, T, VkAllocationCallbacks*)> deletef) {
+	VDeleter(const VDeleter<VkDevice>& device, std::function<void(VkDevice, T, const VkAllocationCallbacks*)> deletef) {
 		this->deleter = [&device, deletef](T obj) { deletef(device, obj, nullptr); };
 	}
 
