@@ -42,6 +42,14 @@ private:
 	VkFormat swapChainImageFormat;
 	VkExtent2D swapChainExtent;
 	std::vector<VDeleter<VkImageView>> swapChainImageViews;
+	VDeleter<VkPipelineLayout> pipelineLayout;
+	VDeleter<VkRenderPass> renderPass;
+	VDeleter<VkPipeline> graphicsPipeline;
+	std::vector<VDeleter<VkFramebuffer>> swapChainFramebuffers;
+	VDeleter<VkCommandPool> commandPool;
+	std::vector<VkCommandBuffer> commandBuffers;
+	VDeleter<VkSemaphore> imageAvailableSemaphore{ device, vkDestroySemaphore };
+	VDeleter<VkSemaphore> renderFinishedSemaphore{ device, vkDestroySemaphore };
 
 	void initWindow();
 
@@ -61,7 +69,19 @@ private:
 
 	void createImageViews();
 
+	void createRenderPass();
+
 	void createGraphicsPipeline();
+
+	void createFramebuffers();
+
+	void createCommandPool();
+
+	void createCommandBuffers();
+
+	void createSemaphores();
+
+	void drawFrame();
 
 	std::vector<const char*> getRequiredExtensions();
 
@@ -80,6 +100,8 @@ private:
 	VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR> availablePresentModes);
 
 	VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+
+	void createShaderModule(const std::vector<char>& code, VDeleter<VkShaderModule>& shaderModule);
 
 	void mainLoop();
 
