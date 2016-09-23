@@ -67,6 +67,8 @@ private:
 
 	void createSwapChain();
 
+	void recreateSwapChain();
+
 	void createImageViews();
 
 	void createRenderPass();
@@ -105,6 +107,7 @@ private:
 
 	void mainLoop();
 
+	static void onWindowResized(GLFWwindow* window, int width, int height);
 };
 
 VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback);

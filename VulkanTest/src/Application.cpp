@@ -42,9 +42,11 @@ void Application::initWindow()
 	glfwInit();
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
 	window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
+
+	glfwSetWindowUserPointer(window, this);
+	glfwSetWindowSizeCallback(window, Application::onWindowResized);
 }
 
 void Application::initVulkan() {
@@ -357,11 +359,16 @@ void Application::createSwapChain() {
 	createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 	createInfo.presentMode = presentMode;
 	createInfo.clipped = VK_TRUE;
-	createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-	if (vkCreateSwapchainKHR(device, &createInfo, nullptr, swapChain.replace()) != VK_SUCCESS) {
+	VkSwapchainKHR oldSwapChain = swapChain;
+	createInfo.oldSwapchain = oldSwapChain;
+
+	VkSwapchainKHR newSwapChain;
+	if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &newSwapChain) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create swap chain!");
 	}
+
+	swapChain = newSwapChain;
 
 	vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
 	swapChainImages.resize(imageCount);
@@ -369,6 +376,18 @@ void Application::createSwapChain() {
 
 	swapChainImageFormat = surfaceFormat.format;
 	swapChainExtent = extent;
+}
+
+void Application::recreateSwapChain()
+{
+	vkDeviceWaitIdle(device);
+
+	createSwapChain();
+	createImageViews();
+	createRenderPass();
+	createGraphicsPipeline();
+	createFramebuffers();
+	createCommandBuffers();
 }
 
 void Application::createImageViews()
@@ -626,6 +645,10 @@ void Application::createCommandPool()
 
 void Application::createCommandBuffers()
 {
+	if (commandBuffers.size() > 0) {
+		vkFreeCommandBuffers(device, commandPool, (uint32_t)commandBuffers.size(), commandBuffers.data());
+	}
+
 	commandBuffers.resize(swapChainFramebuffers.size());
 
 	VkCommandBufferAllocateInfo allocInfo = {};
@@ -686,7 +709,15 @@ void Application::createSemaphores()
 void Application::drawFrame()
 {
 	uint32_t imageIndex;
-	vkAcquireNextImageKHR(device, swapChain, std::numeric_limits<uint64_t>::max(), imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+	VkResult result = vkAcquireNextImageKHR(device, swapChain, std::numeric_limits<uint64_t>::max(), imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+
+	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+		recreateSwapChain();
+		return;
+	}
+	else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+		throw std::runtime_error("failed to acquire swap chain image!");
+	}
 
 	VkSubmitInfo submitInfo = {};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -719,7 +750,14 @@ void Application::drawFrame()
 	presentInfo.pImageIndices = &imageIndex;
 	presentInfo.pResults = nullptr; // Optional
 
-	vkQueuePresentKHR(presentQueue, &presentInfo);
+	result = vkQueuePresentKHR(presentQueue, &presentInfo);
+	
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+		recreateSwapChain();
+	}
+	else if (result != VK_SUCCESS) {
+		throw std::runtime_error("failed to present swap chain image!");
+	}
 }
 
 VkSurfaceFormatKHR Application::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
@@ -767,6 +805,8 @@ void Application::mainLoop()
 		glfwPollEvents();
 		drawFrame();
 	}
+
+	vkDeviceWaitIdle(device);
 }
 
 VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback) {
@@ -790,4 +830,11 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugReportFlagsEXT flags,
 	std::cerr << "validation layer: " << msg << std::endl;
 
 	return VK_FALSE;
+}
+
+void Application::onWindowResized(GLFWwindow* window, int width, int height) {
+	if (width == 0 || height == 0) return;
+
+	Application* app = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
+	app->recreateSwapChain();
 }
