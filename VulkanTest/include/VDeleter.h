@@ -1,3 +1,6 @@
+#ifndef VDELETER_H
+#define VDELETER_H
+
 #include <functional>
 
 template <typename T>
@@ -55,4 +58,5 @@ private:
 		object = VK_NULL_HANDLE;
 	}
 };
-#pragma once
+
+#endif
