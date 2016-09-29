@@ -4,6 +4,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <vector>
+#include "VertexData.h"
 #include "VDeleter.h"
 
 struct QueueFamilyIndices {
@@ -56,6 +57,8 @@ private:
 	VDeleter<VkSemaphore> renderFinishedSemaphore;
 	VDeleter<VkImage> textureImage;
 	VDeleter<VkDeviceMemory> textureImageMemory;
+	std::vector<Vertex> vertices;
+	std::vector<uint32_t> indices;
 	VDeleter<VkBuffer> vertexBuffer;
 	VDeleter<VkDeviceMemory> vertexBufferMemory;
 	VDeleter<VkBuffer> indexBuffer;
@@ -109,6 +112,8 @@ private:
 	void createTextureImageView();
 
 	void createTextureSampler();
+
+	void loadModel();
 
 	void createVertexBuffer();
 
