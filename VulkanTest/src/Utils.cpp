@@ -24,7 +24,7 @@ std::vector<char> Utils::readFile(const std::string& filename)
 	return buffer;
 }
 
-double Utils::calcFPS(GLFWwindow* window, double theTimeInterval, std::string theWindowTitle)
+double Utils::calcFPS(GLFWwindow* window, bool lastFrameDrawn, double theTimeInterval, std::string theWindowTitle)
 {
 	// Static values which only get initialised the first time the function runs
 	static double t0Value = glfwGetTime(); 
@@ -71,7 +71,7 @@ double Utils::calcFPS(GLFWwindow* window, double theTimeInterval, std::string th
 		fpsFrameCount = 0;
 		t0Value = glfwGetTime();
 	}
-	else // FPS calculation time interval hasn't elapsed yet? Simply increment the FPS frame counter
+	else if(lastFrameDrawn)
 	{
 		fpsFrameCount++;
 	}

@@ -68,6 +68,9 @@ private:
 	VkDescriptorSet descriptorSet;
 	VDeleter<VkImageView> textureImageView;
 	VDeleter<VkSampler> textureSampler;
+	VDeleter<VkImage> depthImage;
+	VDeleter<VkDeviceMemory> depthImageMemory;
+	VDeleter<VkImageView> depthImageView;
 
 	void initWindow();
 
@@ -99,6 +102,8 @@ private:
 
 	void createCommandPool();
 
+	void createDepthResources();
+
 	void createTextureImage();
 
 	void createTextureImageView();
@@ -121,7 +126,7 @@ private:
 
 	void createDescriptorSet();
 
-	void drawFrame();
+	bool drawFrame();
 
 	std::vector<const char*> getRequiredExtensions();
 
@@ -151,7 +156,7 @@ private:
 
 	void transitionImageLayout(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout);
 
-	void createImageView(VkImage image, VkFormat format, VDeleter<VkImageView>& imageView);
+	void createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, VDeleter<VkImageView>& imageView);
 
 	void copyImage(VkImage srcImage, VkImage dstImage, uint32_t width, uint32_t height);
 
@@ -162,6 +167,10 @@ private:
 	void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 
 	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+
+	VkFormat findDepthFormat();
+
+	VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 
 	static void onWindowResized(GLFWwindow* window, int width, int height);
 };
