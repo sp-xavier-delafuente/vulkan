@@ -19,11 +19,8 @@
 const int WIDTH = 800;
 const int HEIGHT = 600;
 
-//const std::string MODEL_PATH = "models/chalet.obj";
-//const std::string TEXTURE_PATH = "textures/chalet.jpg";
-
-const std::string MODEL_PATH = "models/model.obj";
-const std::string TEXTURE_PATH = "textures/model.jpg";
+const std::string MODEL_PATH = "models/chalet.obj";
+const std::string TEXTURE_PATH = "textures/chalet.jpg";
 
 Application::Application() :
 	validationLayers{ "VK_LAYER_LUNARG_standard_validation" },
@@ -37,7 +34,8 @@ Application::Application() :
 	descriptorSetLayout(device, vkDestroyDescriptorSetLayout),
 	pipelineLayout(device, vkDestroyPipelineLayout),
 	renderPass(device, vkDestroyRenderPass),
-	graphicsPipeline(device, vkDestroyPipeline),
+	graphicsPipelineSolid(device, vkDestroyPipeline),
+	graphicsPipelineWireframe(device, vkDestroyPipeline),
 	commandPool(device, vkDestroyCommandPool),
 	imageAvailableSemaphore(device, vkDestroySemaphore),
 	renderFinishedSemaphore(device, vkDestroySemaphore),
@@ -84,6 +82,7 @@ void Application::initWindow()
 
 	glfwSetWindowUserPointer(window, this);
 	glfwSetWindowSizeCallback(window, Application::onWindowResized);
+	glfwSetKeyCallback(window, Application::onKeyPressed);
 }
 
 void Application::initVulkan() {
@@ -220,6 +219,7 @@ void Application::createLogicalDevice()
 	}
 
 	VkPhysicalDeviceFeatures deviceFeatures = {};
+	deviceFeatures.fillModeNonSolid = true;
 
 	VkDeviceCreateInfo createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -679,8 +679,17 @@ void Application::createGraphicsPipeline()
 	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 	pipelineInfo.basePipelineIndex = -1; // Optional
 
-	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, graphicsPipeline.replace()) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create graphics pipeline!");
+	//solid pipeline
+	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, graphicsPipelineSolid.replace()) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create solid graphics pipeline!");
+	}
+
+	rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
+	rasterizer.lineWidth = 1.0f;
+
+	//wireframe pipeline
+	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, graphicsPipelineWireframe.replace()) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create wireframe graphics pipeline!");
 	}
 }
 
@@ -1111,7 +1120,7 @@ void Application::createCommandBuffers()
 
 		vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-		vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+		vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, wireframe ? graphicsPipelineWireframe : graphicsPipelineSolid);
 
 		VkBuffer vertexBuffers[] = { vertexBuffer };
 		VkDeviceSize offsets[] = { 0 };
@@ -1364,6 +1373,16 @@ void Application::onWindowResized(GLFWwindow* window, int width, int height) {
 
 	Application* app = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
 	app->recreateSwapChain();
+}
+
+void Application::onKeyPressed(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+	Application* app = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
+	if (key == GLFW_KEY_W && action == GLFW_PRESS)
+	{
+		app->wireframe = !app->wireframe;
+		app->createCommandBuffers();
+	}
 }
 
 void Application::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VDeleter<VkBuffer>& buffer, VDeleter<VkDeviceMemory>& bufferMemory) {

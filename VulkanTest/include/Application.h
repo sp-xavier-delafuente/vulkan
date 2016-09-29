@@ -49,7 +49,8 @@ private:
 	VDeleter<VkDescriptorSetLayout> descriptorSetLayout;
 	VDeleter<VkPipelineLayout> pipelineLayout;
 	VDeleter<VkRenderPass> renderPass;
-	VDeleter<VkPipeline> graphicsPipeline;
+	VDeleter<VkPipeline> graphicsPipelineSolid;
+	VDeleter<VkPipeline> graphicsPipelineWireframe;
 	std::vector<VDeleter<VkFramebuffer>> swapChainFramebuffers;
 	VDeleter<VkCommandPool> commandPool;
 	std::vector<VkCommandBuffer> commandBuffers;
@@ -74,6 +75,8 @@ private:
 	VDeleter<VkImage> depthImage;
 	VDeleter<VkDeviceMemory> depthImageMemory;
 	VDeleter<VkImageView> depthImageView;
+
+	bool wireframe;
 
 	void initWindow();
 
@@ -178,6 +181,8 @@ private:
 	VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 
 	static void onWindowResized(GLFWwindow* window, int width, int height);
+
+	static void onKeyPressed(GLFWwindow* window, int key, int scancode, int action, int mods);
 };
 
 VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback);
