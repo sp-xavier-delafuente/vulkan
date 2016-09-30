@@ -6,6 +6,7 @@
 #include <vector>
 #include "VertexData.h"
 #include "VDeleter.h"
+#include "Camera.h"
 
 struct QueueFamilyIndices {
 	int graphicsFamily = -1;
@@ -76,9 +77,19 @@ private:
 	VDeleter<VkDeviceMemory> depthImageMemory;
 	VDeleter<VkImageView> depthImageView;
 
+	Camera camera;
+	glm::vec3 rotation = glm::vec3();
+	glm::vec3 cameraPosition = glm::vec3();
+	glm::vec2 mousePosition;
+	float rotationSpeed = 1.0f;
+	float zoomSpeed = 1.0f;
 	bool wireframe;
+	bool rotateCamera;
+	bool panCamera;
 
 	void initWindow();
+
+	void initCamera();
 
 	void initVulkan();
 
@@ -183,6 +194,16 @@ private:
 	static void onWindowResized(GLFWwindow* window, int width, int height);
 
 	static void onKeyPressed(GLFWwindow* window, int key, int scancode, int action, int mods);
+
+	static void onMousePressed(GLFWwindow* window, int button, int action, int mods);
+
+	static void onCursorMoved(GLFWwindow* window, double xpos, double ypos);
+
+	void handlePressedKey(int key, int scancode, int action, int mods);
+
+	void handleMousePressed(int button, int action, int mods);
+
+	void handleCursorMoved(double xpos, double ypos);
 };
 
 VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback);

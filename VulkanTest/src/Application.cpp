@@ -42,7 +42,7 @@ Application::Application() :
 	textureImage(device, vkDestroyImage),
 	textureImageMemory(device, vkFreeMemory),
 	vertices(),
-    indices(),
+	indices(),
 	vertexBuffer(device, vkDestroyBuffer),
 	vertexBufferMemory(device, vkFreeMemory),
 	indexBuffer(device, vkDestroyBuffer),
@@ -55,8 +55,11 @@ Application::Application() :
 	textureImageView(device, vkDestroyImageView),
 	textureSampler(device, vkDestroySampler),
 	depthImage(device, vkDestroyImage),
-    depthImageMemory(device, vkFreeMemory),
-    depthImageView(device, vkDestroyImageView),
+	depthImageMemory(device, vkFreeMemory),
+	depthImageView(device, vkDestroyImageView),
+	wireframe(false),
+    rotateCamera(false),
+    panCamera(false),
 #ifdef NDEBUG
 	enableValidationLayers(false)
 #else
@@ -83,6 +86,17 @@ void Application::initWindow()
 	glfwSetWindowUserPointer(window, this);
 	glfwSetWindowSizeCallback(window, Application::onWindowResized);
 	glfwSetKeyCallback(window, Application::onKeyPressed);
+	glfwSetMouseButtonCallback(window, Application::onMousePressed);
+	glfwSetCursorPosCallback(window, Application::onCursorMoved);
+}
+
+void Application::initCamera()
+{
+	camera.type = Camera::CameraType::firstperson;
+	camera.setPerspective(60.0f, (float)WIDTH / (float)HEIGHT, 0.1f, 500.0f);
+	//camera.setRotation(glm::vec3(7.0f, -75.0f, 0.0f));
+	//camera.setTranslation(glm::vec3(-81.0f, 6.25f, -14.0f));
+	camera.movementSpeed = 20.0f * 2.0f;
 }
 
 void Application::initVulkan() {
@@ -437,6 +451,8 @@ void Application::recreateSwapChain()
 	createDepthResources();
 	createFramebuffers();
 	createCommandBuffers();
+
+	camera.updateAspectRatio(swapChainExtent.width / (float)swapChainExtent.height);
 }
 
 void Application::createImageViews()
@@ -1160,9 +1176,9 @@ void Application::updateUniformBuffer()
 	float time = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count() / 1000.0f;
 
 	UniformBufferObject ubo = {};
-	ubo.model = glm::rotate(glm::mat4(), time * glm::radians(60.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
+	ubo.model = glm::mat4();//  glm::rotate(glm::mat4(), time * glm::radians(60.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.view = camera.matrices.view; //glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));//
+	ubo.proj = camera.matrices.perspective;// glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);//
 
 	//Designed for OpenGL, where the Y coordinate is inverted
 	ubo.proj[1][1] *= -1;
@@ -1338,8 +1354,12 @@ void Application::mainLoop()
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 		updateUniformBuffer();
+		auto timeStart = glfwGetTime();
 		bool frameDrawn = drawFrame();
 		Utils::calcFPS(window, frameDrawn);
+		auto timeEnd = glfwGetTime();
+		float deltaTime = (float)timeEnd - timeStart;
+		camera.update(deltaTime);
 	}
 
 	vkDeviceWaitIdle(device);
@@ -1378,11 +1398,148 @@ void Application::onWindowResized(GLFWwindow* window, int width, int height) {
 void Application::onKeyPressed(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
 	Application* app = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
-	if (key == GLFW_KEY_W && action == GLFW_PRESS)
+	app->handlePressedKey(key, scancode, action, mods);
+}
+
+void Application::onMousePressed(GLFWwindow* window, int button, int action, int mods)
+{
+	Application* app = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
+	app->handleMousePressed(button, action, mods);
+}
+
+void Application::onCursorMoved(GLFWwindow* window, double xpos, double ypos)
+{
+	Application* app = reinterpret_cast<Application*>(glfwGetWindowUserPointer(window));
+	app->handleCursorMoved(xpos, ypos);
+}
+
+void Application::handlePressedKey(int key, int scancode, int action, int mods)
+{
+	switch (action)
 	{
-		app->wireframe = !app->wireframe;
-		app->createCommandBuffers();
+	case GLFW_PRESS:
+		switch (key)
+		{
+		case GLFW_KEY_W:
+
+			wireframe = !wireframe;
+			createCommandBuffers();
+			break;
+
+		case GLFW_KEY_UP:
+			if (camera.firstperson)
+			{
+				camera.keys.up = true;
+			}
+			break;
+		case GLFW_KEY_DOWN:
+			if (camera.firstperson)
+			{
+				camera.keys.down = true;
+			}
+			break;
+		case GLFW_KEY_LEFT:
+			if (camera.firstperson)
+			{
+				camera.keys.left = true;
+			}
+			break;
+		case GLFW_KEY_RIGHT:
+			if (camera.firstperson)
+			{
+				camera.keys.right = true;
+			}
+			break;
+		}
+		break;
+	case GLFW_RELEASE:
+		switch (key)
+		{
+		case GLFW_KEY_UP:
+			if (camera.firstperson)
+			{
+				camera.keys.up = false;
+			}
+			break;
+		case GLFW_KEY_DOWN:
+			if (camera.firstperson)
+			{
+				camera.keys.down = false;
+			}
+			break;
+		case GLFW_KEY_LEFT:
+			if (camera.firstperson)
+			{
+				camera.keys.left = false;
+			}
+			break;
+		case GLFW_KEY_RIGHT:
+			if (camera.firstperson)
+			{
+				camera.keys.right = false;
+			}
+			break;
+		}
+		break;
+	};
+}
+
+void Application::handleMousePressed(int button, int action, int mods)
+{
+	switch (action)
+	{
+	case GLFW_PRESS:
+		if (button == GLFW_MOUSE_BUTTON_LEFT)
+		{
+			rotateCamera = true;
+		}
+		else if (button == GLFW_MOUSE_BUTTON_RIGHT)
+		{
+			panCamera = true;
+		}
+		break;
+
+	case GLFW_RELEASE:
+		if (button == GLFW_MOUSE_BUTTON_LEFT)
+		{
+			rotateCamera = false;
+		}
+		else if (button == GLFW_MOUSE_BUTTON_RIGHT)
+		{
+			panCamera = false;
+		}
+		break;
+	default:
+		break;
 	}
+}
+
+void Application::handleCursorMoved(double xpos, double ypos)
+{
+	if (rotateCamera)
+	{
+		rotation.x += (mousePosition.y - (float)ypos) * 1.25f * rotationSpeed;
+		rotation.y -= (mousePosition.x - (float)xpos) * 1.25f * rotationSpeed;
+		camera.rotate(glm::vec3((mousePosition.y - (float)ypos), -(mousePosition.x - (float)xpos), 0.0f));
+	}
+
+	if (panCamera)
+	{
+		cameraPosition.x -= (mousePosition.x - (float)xpos) * 0.01f;
+		cameraPosition.y -= (mousePosition.y - (float)ypos) * 0.01f;
+		camera.translate(glm::vec3(-(mousePosition.x - (float)xpos) * 0.01f, -(mousePosition.y - (float)ypos) * 0.01f, 0.0f));
+	}
+
+	/*if (zoom)
+	{
+		int32_t posx = LOWORD(lParam);
+		int32_t posy = HIWORD(lParam);
+		zoom += (mousePos.y - (float)posy) * .005f * zoomSpeed;
+		camera.translate(glm::vec3(-0.0f, 0.0f, (mousePos.y - (float)posy) * .005f * zoomSpeed));
+		mousePos = glm::vec2((float)posx, (float)posy);
+	}*/
+
+	mousePosition = glm::vec2((float)xpos, (float)ypos);
 }
 
 void Application::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VDeleter<VkBuffer>& buffer, VDeleter<VkDeviceMemory>& bufferMemory) {
