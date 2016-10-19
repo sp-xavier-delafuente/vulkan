@@ -2,9 +2,11 @@
 #include <set>
 #include <algorithm>
 #include <chrono>
+#include <limits>
 
 #include "Application.h"
 #include "Utils.h"
+#include "MeshLoader.hpp"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -13,13 +15,11 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-#define TINYOBJLOADER_IMPLEMENTATION
-#include <tiny_obj_loader.h>
 
 const int WIDTH = 800;
 const int HEIGHT = 600;
 
-const std::string MODEL_PATH = "models/chalet.obj";
+const std::string MODEL_PATH = "models/vulkanscenelogos.dae";
 const std::string TEXTURE_PATH = "textures/chalet.jpg";
 
 Application::Application() :
@@ -60,6 +60,10 @@ Application::Application() :
 	wireframe(false),
     rotateCamera(false),
     panCamera(false),
+	zoomCamera(false),
+	cameraPosition(0.13f, 0.36f, 0.0f),
+	rotation(243.0f, 0.0f, -70.0f),
+	zoom(3.0f),
 #ifdef NDEBUG
 	enableValidationLayers(false)
 #else
@@ -92,7 +96,7 @@ void Application::initWindow()
 
 void Application::initCamera()
 {
-	camera.type = Camera::CameraType::firstperson;
+	camera.type = Camera::CameraType::lookat;
 	camera.setPerspective(60.0f, (float)WIDTH / (float)HEIGHT, 0.1f, 500.0f);
 	//camera.setRotation(glm::vec3(7.0f, -75.0f, 0.0f));
 	//camera.setTranslation(glm::vec3(-81.0f, 6.25f, -14.0f));
@@ -113,12 +117,11 @@ void Application::initVulkan() {
 	createCommandPool();
 	createDepthResources();
 	createFramebuffers();
-	createTextureImage();
-	createTextureImageView();
+	//createTextureImage();
+	//createTextureImageView();
 	createTextureSampler();
 	loadModel();
-	createVertexBuffer();
-	createIndexBuffer();
+
 	createUniformBuffer();
 	createDescriptorPool();
 	createDescriptorSet();
@@ -1021,16 +1024,11 @@ void Application::createImage(uint32_t width, uint32_t height, VkFormat format, 
 
 void Application::loadModel()
 {
-	tinyobj::attrib_t attrib;
-	std::vector<tinyobj::shape_t> shapes;
-	std::vector<tinyobj::material_t> materials;
-	std::string err;
+	MeshLoader meshLoader;
 
-	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, MODEL_PATH.c_str())) {
-		throw std::runtime_error(err);
-	}
+	meshLoader.LoadMesh(MODEL_PATH);
 
-	for (const auto& shape : shapes) {
+	/*for (const auto& shape : shapes) {
 		for (const auto& index : shape.mesh.indices) {
 			Vertex vertex = {};
 
@@ -1048,7 +1046,10 @@ void Application::loadModel()
 			vertices.push_back(vertex);
 			indices.push_back((uint32_t)indices.size());
 		}
-	}
+	}*/
+
+	createVertexBuffer();
+	createIndexBuffer();
 }
 
 void Application::createVertexBuffer()
@@ -1176,9 +1177,19 @@ void Application::updateUniformBuffer()
 	float time = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count() / 1000.0f;
 
 	UniformBufferObject ubo = {};
-	ubo.model = glm::mat4();//  glm::rotate(glm::mat4(), time * glm::radians(60.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.view = camera.matrices.view; //glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));//
-	ubo.proj = camera.matrices.perspective;// glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);//
+
+	ubo.proj = glm::perspective(glm::radians(60.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 256.0f);
+
+	ubo.view = glm::lookAt(
+		glm::vec3(0, 0, -zoom),
+		cameraPosition,
+		glm::vec3(0, 1, 0)
+	);
+
+	ubo.model = glm::mat4();
+	ubo.model = glm::rotate(ubo.model, glm::radians(rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+	ubo.model = glm::rotate(ubo.model, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+	ubo.model = glm::rotate(ubo.model, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
 
 	//Designed for OpenGL, where the Y coordinate is inverted
 	ubo.proj[1][1] *= -1;
@@ -1497,6 +1508,10 @@ void Application::handleMousePressed(int button, int action, int mods)
 		{
 			panCamera = true;
 		}
+		else if (button == GLFW_MOUSE_BUTTON_MIDDLE)
+		{
+			zoomCamera = true;
+		}
 		break;
 
 	case GLFW_RELEASE:
@@ -1507,6 +1522,10 @@ void Application::handleMousePressed(int button, int action, int mods)
 		else if (button == GLFW_MOUSE_BUTTON_RIGHT)
 		{
 			panCamera = false;
+		}
+		else if (button == GLFW_MOUSE_BUTTON_MIDDLE)
+		{
+			zoomCamera = false;
 		}
 		break;
 	default:
@@ -1519,25 +1538,23 @@ void Application::handleCursorMoved(double xpos, double ypos)
 	if (rotateCamera)
 	{
 		rotation.x += (mousePosition.y - (float)ypos) * 1.25f * rotationSpeed;
-		rotation.y -= (mousePosition.x - (float)xpos) * 1.25f * rotationSpeed;
-		camera.rotate(glm::vec3((mousePosition.y - (float)ypos), -(mousePosition.x - (float)xpos), 0.0f));
+		rotation.z -= (mousePosition.x - (float)xpos) * 1.25f * rotationSpeed;
+		//camera.rotate(glm::vec3(-(mousePosition.y - (float)ypos), -(mousePosition.x - (float)xpos), 0.0f));
 	}
 
 	if (panCamera)
 	{
 		cameraPosition.x -= (mousePosition.x - (float)xpos) * 0.01f;
 		cameraPosition.y -= (mousePosition.y - (float)ypos) * 0.01f;
-		camera.translate(glm::vec3(-(mousePosition.x - (float)xpos) * 0.01f, -(mousePosition.y - (float)ypos) * 0.01f, 0.0f));
+		//camera.translate(glm::vec3(-(mousePosition.x - (float)xpos) * 0.01f, (mousePosition.y - (float)ypos) * 0.01f, 0.0f));
 	}
 
-	/*if (zoom)
+	if (zoomCamera)
 	{
-		int32_t posx = LOWORD(lParam);
-		int32_t posy = HIWORD(lParam);
-		zoom += (mousePos.y - (float)posy) * .005f * zoomSpeed;
-		camera.translate(glm::vec3(-0.0f, 0.0f, (mousePos.y - (float)posy) * .005f * zoomSpeed));
-		mousePos = glm::vec2((float)posx, (float)posy);
-	}*/
+		zoom += (mousePosition.y - (float)ypos) * .005f * zoomSpeed;
+		camera.translate(glm::vec3(-0.0f, 0.0f, (mousePosition.y - (float)ypos) * .005f * zoomSpeed));
+		//mousePosition = glm::vec2((float)xpos, (float)ypos);
+	}
 
 	mousePosition = glm::vec2((float)xpos, (float)ypos);
 }
