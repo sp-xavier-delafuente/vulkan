@@ -86,8 +86,6 @@ private:
 	bool wireframe;
 	bool rotateCamera;
 	bool panCamera;
-	bool zoomCamera;
-	float zoom = 0.0f;
 
 	void initWindow();
 
