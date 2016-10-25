@@ -82,7 +82,7 @@ private:
 	glm::vec3 cameraPosition = glm::vec3();
 	glm::vec2 mousePosition;
 	float rotationSpeed = 1.0f;
-	float zoomSpeed = 1.0f;
+	float zoomSpeed = 5.0f;
 	bool wireframe;
 	bool rotateCamera;
 	bool panCamera;
