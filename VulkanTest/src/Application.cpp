@@ -60,6 +60,10 @@ Application::Application() :
 	wireframe(false),
     rotateCamera(false),
     panCamera(false),
+	zoomCamera(false),
+	cameraPosition(0.13f, 0.36f, 0.0f),
+	rotation(243.0f, 0.0f, -70.0f),
+	zoom(3.0f),
 #ifdef NDEBUG
 	enableValidationLayers(false)
 #else
@@ -92,7 +96,7 @@ void Application::initWindow()
 
 void Application::initCamera()
 {
-	camera.type = Camera::CameraType::firstperson;
+	camera.type = Camera::CameraType::lookat;
 	camera.setPerspective(60.0f, (float)WIDTH / (float)HEIGHT, 0.1f, 500.0f);
 	//camera.setRotation(glm::vec3(7.0f, -75.0f, 0.0f));
 	//camera.setTranslation(glm::vec3(-81.0f, 6.25f, -14.0f));
@@ -1176,9 +1180,23 @@ void Application::updateUniformBuffer()
 	float time = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count() / 1000.0f;
 
 	UniformBufferObject ubo = {};
-	ubo.model = glm::mat4();//  glm::rotate(glm::mat4(), time * glm::radians(60.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.view = camera.matrices.view; //glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));//
-	ubo.proj = camera.matrices.perspective;// glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);//
+	//ubo.model = glm::mat4();//  glm::rotate(glm::mat4(), time * glm::radians(60.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	//ubo.view = camera.matrices.view; //glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));//
+	//ubo.proj = camera.matrices.perspective;// glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);//
+
+	ubo.proj = glm::perspective(glm::radians(60.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 256.0f);
+
+	ubo.view = glm::lookAt(
+		glm::vec3(0, 0, -zoom),
+		cameraPosition,
+		glm::vec3(0, 1, 0)
+	);
+
+	ubo.model = glm::mat4();
+	ubo.model = glm::rotate(ubo.model, glm::radians(rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
+	ubo.model = glm::rotate(ubo.model, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+	ubo.model = glm::rotate(ubo.model, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+
 
 	//Designed for OpenGL, where the Y coordinate is inverted
 	ubo.proj[1][1] *= -1;
@@ -1497,6 +1515,10 @@ void Application::handleMousePressed(int button, int action, int mods)
 		{
 			panCamera = true;
 		}
+		else if (button == GLFW_MOUSE_BUTTON_MIDDLE)
+		{
+			zoomCamera = true;
+		}
 		break;
 
 	case GLFW_RELEASE:
@@ -1507,6 +1529,10 @@ void Application::handleMousePressed(int button, int action, int mods)
 		else if (button == GLFW_MOUSE_BUTTON_RIGHT)
 		{
 			panCamera = false;
+		}
+		else if (button == GLFW_MOUSE_BUTTON_MIDDLE)
+		{
+			zoomCamera = false;
 		}
 		break;
 	default:
@@ -1519,7 +1545,7 @@ void Application::handleCursorMoved(double xpos, double ypos)
 	if (rotateCamera)
 	{
 		rotation.x += (mousePosition.y - (float)ypos) * 1.25f * rotationSpeed;
-		rotation.y -= (mousePosition.x - (float)xpos) * 1.25f * rotationSpeed;
+		rotation.z -= (mousePosition.x - (float)xpos) * 1.25f * rotationSpeed;
 		camera.rotate(glm::vec3((mousePosition.y - (float)ypos), -(mousePosition.x - (float)xpos), 0.0f));
 	}
 
@@ -1530,14 +1556,11 @@ void Application::handleCursorMoved(double xpos, double ypos)
 		camera.translate(glm::vec3(-(mousePosition.x - (float)xpos) * 0.01f, -(mousePosition.y - (float)ypos) * 0.01f, 0.0f));
 	}
 
-	/*if (zoom)
+	if (zoomCamera)
 	{
-		int32_t posx = LOWORD(lParam);
-		int32_t posy = HIWORD(lParam);
-		zoom += (mousePos.y - (float)posy) * .005f * zoomSpeed;
-		camera.translate(glm::vec3(-0.0f, 0.0f, (mousePos.y - (float)posy) * .005f * zoomSpeed));
-		mousePos = glm::vec2((float)posx, (float)posy);
-	}*/
+		zoom += (mousePosition.y - (float)ypos) * .005f * zoomSpeed;
+		camera.translate(glm::vec3(-0.0f, 0.0f, (mousePosition.y - (float)ypos) * .005f * zoomSpeed));
+	}
 
 	mousePosition = glm::vec2((float)xpos, (float)ypos);
 }
