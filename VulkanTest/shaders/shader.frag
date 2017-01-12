@@ -17,6 +17,6 @@ void main() {
 	vec3 R = reflect(-L, N);
     vec4 color = texture(texSampler, fragTexCoord);
 	vec3 diffuse = max(dot(N, L), 0.0) * color.xyz;
-	vec3 ambient = vec3(0.1, 0.1, 0.1) * color.rgb;
+	vec3 ambient = vec3(0.2, 0.2, 0.2) * color.rgb;
 	outColor = vec4(diffuse * color.rgb + ambient, 1.0);		
 }

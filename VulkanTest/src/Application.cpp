@@ -25,6 +25,9 @@ const int HEIGHT = 600;
 const std::string MODEL_PATH = "models/Farmhouse.obj";
 const std::string TEXTURE_PATH = "textures/Farmhouse.jpg";
 
+//const std::string MODEL_PATH = "models/cat.obj";
+//const std::string TEXTURE_PATH = "textures/cat_diff.tga";
+
 Application::Application() :
 	validationLayers{ "VK_LAYER_LUNARG_standard_validation" },
 	deviceExtensions{ VK_KHR_SWAPCHAIN_EXTENSION_NAME },
