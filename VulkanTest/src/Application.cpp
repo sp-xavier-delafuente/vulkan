@@ -559,8 +559,8 @@ void Application::createDescriptorSetLayout()
 
 void Application::createGraphicsPipeline()
 {
-	auto vertShaderCode = Utils::readFile("shaders/vert.spv");
-	auto fragShaderCode = Utils::readFile("shaders/frag.spv");
+	auto vertShaderCode = Utils::readFile("shaders/shader.vert.spv");
+	auto fragShaderCode = Utils::readFile("shaders/shader.frag.spv");
 
 	VDeleter<VkShaderModule> vertShaderModule{ device, vkDestroyShaderModule };
 	VDeleter<VkShaderModule> fragShaderModule{ device, vkDestroyShaderModule };
